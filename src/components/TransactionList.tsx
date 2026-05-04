@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { useLedgerStore } from "@/store";
 import { useCards, useTransactions } from "@/hooks";
 import { TransactionForm } from "@/components/TransactionForm";
+import { useT } from "@/i18n/LocaleContext";
 import type { Currency, Transaction } from "@/types";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -30,6 +31,7 @@ function DeleteConfirmModal({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const t = useT();
   return (
     <>
       <div
@@ -38,9 +40,14 @@ function DeleteConfirmModal({
       />
       <div className="fixed inset-0 z-50 flex items-center justify-center px-6">
         <div className="w-full max-w-xs rounded-2xl bg-white p-6 shadow-xl">
-          <h3 className="text-base font-semibold text-zinc-900">确认删除</h3>
+          <h3 className="text-base font-semibold text-zinc-900">
+            {t.confirmDeleteTitle}
+          </h3>
           <p className="mt-2 text-sm text-zinc-500">
-            确定要删除「{tx.category}」这条记录吗？此操作不可撤销。
+            {t.confirmDeleteMsg(
+              t.categoryNames[tx.category as keyof typeof t.categoryNames] ??
+                tx.category,
+            )}
           </p>
           <div className="mt-5 flex gap-3">
             <button
@@ -48,14 +55,14 @@ function DeleteConfirmModal({
               onClick={onCancel}
               className="flex-1 rounded-lg border border-zinc-200 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
             >
-              取消
+              {t.cancel}
             </button>
             <button
               type="button"
               onClick={onConfirm}
               className="flex-1 rounded-lg bg-red-500 py-2 text-sm font-medium text-white transition-colors hover:bg-red-600"
             >
-              删除
+              {t.delete}
             </button>
           </div>
         </div>
@@ -78,13 +85,16 @@ function TransactionRow({
   onDelete: (tx: Transaction) => void;
 }) {
   const isIncome = tx.type === "income";
+  const t = useT();
+  const categoryDisplay =
+    t.categoryNames[tx.category as keyof typeof t.categoryNames] ?? tx.category;
 
   return (
     <li className="flex items-center justify-between rounded-lg bg-white px-4 py-3 shadow-sm">
       <div className="flex items-center gap-3 min-w-0">
         <span className="text-xl shrink-0">💰</span>
         <div className="min-w-0">
-          <p className="text-sm font-medium text-zinc-800">{tx.category}</p>
+          <p className="text-sm font-medium text-zinc-800">{categoryDisplay}</p>
           <p className="truncate text-xs text-zinc-400">
             {tx.date}
             {cardName ? ` · ${cardName}` : ""}
@@ -170,11 +180,12 @@ export function TransactionList({
 
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
   const [deletingTx, setDeletingTx] = useState<Transaction | null>(null);
+  const t = useT();
 
   if (isLoading) {
     return (
       <div className="flex justify-center py-12 text-zinc-400 text-sm">
-        加载中…
+        {t.loading}
       </div>
     );
   }
@@ -183,7 +194,7 @@ export function TransactionList({
     return (
       <div className="flex flex-col items-center gap-2 py-16 text-zinc-400">
         <span className="text-4xl">📭</span>
-        <p className="text-sm">本月暂无记录</p>
+        <p className="text-sm">{t.noRecords}</p>
       </div>
     );
   }

@@ -4,12 +4,14 @@ import Link from "next/link";
 import { useState } from "react";
 import type { Currency } from "@/types";
 import { useCards } from "@/hooks";
+import { useT } from "@/i18n/LocaleContext";
 import { TransactionForm } from "@/components/TransactionForm";
 import { TransactionList } from "@/components/TransactionList";
 import { MonthlySummary } from "@/components/MonthlySummary";
 import { MonthPicker } from "@/components/MonthPicker";
 import { CurrencySwitcher } from "@/components/CurrencySwitcher";
 import { CardManager } from "@/components/CardManager";
+import { LocaleSwitcher } from "@/components/LocaleSwitcher";
 import { Select } from "@/components/ui/select";
 
 function currentMonth() {
@@ -19,6 +21,7 @@ function currentMonth() {
 
 export default function HomePage() {
   const cards = useCards();
+  const t = useT();
   const [month, setMonth] = useState(currentMonth());
   const [currency, setCurrency] = useState<Currency>("RMB");
   const [selectedCardId, setSelectedCardId] = useState<string>("all");
@@ -42,7 +45,7 @@ export default function HomePage() {
             onChange={(e) => setSelectedCardId(e.target.value)}
             className="col-span-2"
           >
-            <option value="all">全部卡片</option>
+            <option value="all">{t.allCards}</option>
             {cards.map((card) => (
               <option key={card.id} value={String(card.id)}>
                 {card.name}
@@ -54,15 +57,16 @@ export default function HomePage() {
             onClick={() => setShowCardManager(true)}
             className="rounded-md border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-700 transition-colors hover:bg-zinc-100"
           >
-            管理卡片
+            {t.manageCards}
           </button>
         </div>
-        <div className="mt-2 flex justify-end">
+        <div className="mt-2 flex justify-end gap-2">
+          <LocaleSwitcher />
           <Link
             href="/summary"
             className="rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 transition-colors hover:bg-zinc-100"
           >
-            查看月汇总
+            {t.viewSummary}
           </Link>
         </div>
       </header>
@@ -79,7 +83,7 @@ export default function HomePage() {
       {/* ── Transaction list ──────────────────────────────────────────────── */}
       <section className="px-4 pt-6">
         <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-400">
-          收支明细
+          {t.transactionsSection}
         </h2>
         <TransactionList
           month={month}
@@ -90,7 +94,7 @@ export default function HomePage() {
 
       {/* ── FAB ───────────────────────────────────────────────────────────── */}
       <button
-        aria-label="记一笔"
+        aria-label={t.addRecord}
         onClick={() => setShowForm(true)}
         className="fixed bottom-6 right-6 flex h-14 w-14 items-center justify-center rounded-full bg-zinc-900 text-white shadow-lg transition-transform hover:scale-105 active:scale-95"
       >

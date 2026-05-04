@@ -58,15 +58,15 @@ class FamilyLedgerDB extends Dexie {
         if (count === 0) {
           await cardsTable.bulkAdd([
             {
-              name: "招商银行借记卡",
+              name: "Chase Debit Card",
               type: "debit",
-              bank: "招商银行",
+              bank: "Chase",
               createdAt: Date.now(),
             },
             {
-              name: "交通银行信用卡",
+              name: "Citi Credit Card",
               type: "credit",
-              bank: "交通银行",
+              bank: "Citi",
               createdAt: Date.now(),
             },
           ] as Card[]);
@@ -116,19 +116,23 @@ db.on("populate", async () => {
 
   const defaultCards: Omit<Card, "id">[] = [
     {
-      name: "招商银行借记卡",
+      name: "Chase Debit Card",
       type: "debit",
-      bank: "招商银行",
+      bank: "Chase",
       createdAt: Date.now(),
     },
     {
-      name: "交通银行信用卡",
+      name: "Citi Credit Card",
       type: "credit",
-      bank: "交通银行",
+      bank: "Citi",
       createdAt: Date.now(),
     },
   ];
 
   await db.categories.bulkAdd(defaults as Category[]);
-  await db.cards.bulkAdd(defaultCards as Card[]);
+
+  const cardCount = await db.cards.count();
+  if (cardCount === 0) {
+    await db.cards.bulkAdd(defaultCards as Card[]);
+  }
 });

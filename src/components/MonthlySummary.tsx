@@ -1,6 +1,7 @@
 "use client";
 
 import { useMonthlyTotals } from "@/hooks";
+import { useT } from "@/i18n/LocaleContext";
 import type { Currency } from "@/types";
 
 function formatYuan(cents: number) {
@@ -18,6 +19,7 @@ export function MonthlySummary({
   currency,
   cardId,
 }: MonthlySummaryProps) {
+  const t = useT();
   const { income, expense, balance } = useMonthlyTotals(
     month,
     currency,
@@ -27,19 +29,19 @@ export function MonthlySummary({
   return (
     <div className="grid grid-cols-3 gap-3">
       <Card
-        label="收入"
+        label={t.income}
         value={formatYuan(income)}
         currency={currency}
         color="text-green-500"
       />
       <Card
-        label="支出"
+        label={t.expense}
         value={formatYuan(expense)}
         currency={currency}
         color="text-red-500"
       />
       <Card
-        label="结余"
+        label={t.balance}
         value={formatYuan(balance)}
         currency={currency}
         color={balance >= 0 ? "text-green-500" : "text-red-500"}

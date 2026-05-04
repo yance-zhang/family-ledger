@@ -4,6 +4,7 @@ import { useState, useEffect, type FormEvent } from "react";
 import { cn } from "@/lib/utils";
 import { useLedgerStore } from "@/store";
 import { useCards, useCategories } from "@/hooks";
+import { useT } from "@/i18n/LocaleContext";
 import type { Currency, Transaction, TransactionType } from "@/types";
 
 import { Button } from "@/components/ui/button";
@@ -89,6 +90,7 @@ export function TransactionForm({
   const cards = useCards();
   const addTransaction = useLedgerStore((s) => s.addTransaction);
   const updateTransaction = useLedgerStore((s) => s.updateTransaction);
+  const t = useT();
 
   // ── Field helpers ───────────────────────────────────────────────────────────
 
@@ -107,11 +109,11 @@ export function TransactionForm({
 
     const amountNum = parseFloat(fields.amount);
     if (!fields.amount || isNaN(amountNum) || amountNum <= 0) {
-      next.amount = "请输入有效金额";
+      next.amount = t.errorAmount;
     }
-    if (!fields.date) next.date = "请选择日期";
-    if (!fields.cardId) next.cardId = "请选择卡片";
-    if (!fields.category) next.category = "请选择分类";
+    if (!fields.date) next.date = t.errorDate;
+    if (!fields.cardId) next.cardId = t.errorCard;
+    if (!fields.category) next.category = t.errorCategory;
 
     setErrors(next);
     return Object.keys(next).length === 0;
@@ -162,33 +164,33 @@ export function TransactionForm({
       noValidate
     >
       <h2 className="text-lg font-semibold text-zinc-900">
-        {isEditMode ? "编辑记录" : "记一笔"}
+        {isEditMode ? t.editRecord : t.newRecord}
       </h2>
 
       {/* ── Type toggle ──────────────────────────────────────────────────── */}
       <div className="flex rounded-lg border border-zinc-200 p-1">
-        {(["expense", "income"] as TransactionType[]).map((t) => (
+        {(["expense", "income"] as TransactionType[]).map((txType) => (
           <button
-            key={t}
+            key={txType}
             type="button"
-            onClick={() => handleTypeChange(t)}
+            onClick={() => handleTypeChange(txType)}
             className={cn(
               "flex-1 rounded-md py-1.5 text-sm font-medium transition-colors",
-              fields.type === t
-                ? t === "expense"
+              fields.type === txType
+                ? txType === "expense"
                   ? "bg-red-500 text-white"
                   : "bg-green-500 text-white"
                 : "text-zinc-500 hover:text-zinc-800",
             )}
           >
-            {t === "expense" ? "支出" : "收入"}
+            {txType === "expense" ? t.expenseLabel : t.incomeLabel}
           </button>
         ))}
       </div>
 
       {/* ── Amount + Currency ────────────────────────────────────────────── */}
       <div className="space-y-1.5">
-        <Label htmlFor="amount">金额</Label>
+        <Label htmlFor="amount">{t.amountLabel}</Label>
         <div className="grid grid-cols-3 gap-2">
           <Input
             id="amount"
@@ -220,7 +222,7 @@ export function TransactionForm({
 
       {/* ── Date ─────────────────────────────────────────────────────────── */}
       <div className="space-y-1.5">
-        <Label htmlFor="date">日期</Label>
+        <Label htmlFor="date">{t.dateLabel}</Label>
         <Input
           id="date"
           type="date"
@@ -235,7 +237,7 @@ export function TransactionForm({
 
       {/* ── Card ─────────────────────────────────────────────────────────── */}
       <div className="space-y-1.5">
-        <Label htmlFor="card">卡片</Label>
+        <Label htmlFor="card">{t.cardLabel}</Label>
         <Select
           id="card"
           value={fields.cardId}
@@ -245,11 +247,12 @@ export function TransactionForm({
           )}
         >
           <option value="" disabled>
-            请选择卡片
+            {t.selectCardPlaceholder}
           </option>
           {cards.map((card) => (
             <option key={card.id} value={String(card.id)}>
-              {card.name}（{card.type === "credit" ? "信用卡" : "借记卡"}）
+              {card.name}（{card.type === "credit" ? t.creditCard : t.debitCard}
+              ）
             </option>
           ))}
         </Select>
@@ -260,7 +263,7 @@ export function TransactionForm({
 
       {/* ── Category ─────────────────────────────────────────────────────── */}
       <div className="space-y-1.5">
-        <Label htmlFor="category">分类</Label>
+        <Label htmlFor="category">{t.categoryLabel}</Label>
         <Select
           id="category"
           value={fields.category}
@@ -270,11 +273,13 @@ export function TransactionForm({
           )}
         >
           <option value="" disabled>
-            请选择分类
+            {t.selectCategoryPlaceholder}
           </option>
           {categories.map((c) => (
             <option key={c.id} value={c.name}>
-              {c.icon} {c.name}
+              {c.icon}{" "}
+              {t.categoryNames[c.name as keyof typeof t.categoryNames] ??
+                c.name}
             </option>
           ))}
         </Select>
@@ -285,10 +290,10 @@ export function TransactionForm({
 
       {/* ── Note ─────────────────────────────────────────────────────────── */}
       <div className="space-y-1.5">
-        <Label htmlFor="note">备注（可选）</Label>
+        <Label htmlFor="note">{t.noteLabel}</Label>
         <Textarea
           id="note"
-          placeholder="添加备注…"
+          placeholder={t.notePlaceholder}
           rows={2}
           value={fields.note}
           onChange={(e) => set("note", e.target.value)}
@@ -306,7 +311,7 @@ export function TransactionForm({
             : "bg-red-500 hover:bg-red-600",
         )}
       >
-        {submitting ? "保存中…" : isEditMode ? "保存修改" : "保存记录"}
+        {submitting ? t.saving : isEditMode ? t.saveChanges : t.save}
       </Button>
     </form>
   );

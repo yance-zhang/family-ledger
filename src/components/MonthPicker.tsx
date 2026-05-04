@@ -1,5 +1,7 @@
 "use client";
 
+import { useT } from "@/i18n/LocaleContext";
+
 interface MonthPickerProps {
   value: string; // 'YYYY-MM'
   onChange: (month: string) => void;
@@ -11,16 +13,15 @@ function addMonths(ym: string, delta: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
-function formatLabel(ym: string): string {
-  const [y, m] = ym.split("-");
-  return `${y}年${Number(m)}月`;
-}
-
 export function MonthPicker({ value, onChange }: MonthPickerProps) {
+  const t = useT();
+  const [y, m] = value.split("-");
+  const label = t.monthFormat(y, Number(m));
+
   return (
     <div className="flex items-center justify-between">
       <button
-        aria-label="上一月"
+        aria-label={t.prevMonth}
         onClick={() => onChange(addMonths(value, -1))}
         className="rounded-full p-2 text-zinc-400 transition-colors hover:bg-zinc-200"
       >
@@ -38,12 +39,10 @@ export function MonthPicker({ value, onChange }: MonthPickerProps) {
         </svg>
       </button>
 
-      <span className="text-base font-semibold text-zinc-800">
-        {formatLabel(value)}
-      </span>
+      <span className="text-base font-semibold text-zinc-800">{label}</span>
 
       <button
-        aria-label="下一月"
+        aria-label={t.nextMonth}
         onClick={() => onChange(addMonths(value, 1))}
         className="rounded-full p-2 text-zinc-400 transition-colors hover:bg-zinc-200"
       >
