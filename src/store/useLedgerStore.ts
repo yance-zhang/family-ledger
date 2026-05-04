@@ -22,6 +22,11 @@ interface LedgerState {
   fetchCards: () => Promise<void>;
   addCard: (data: CardInput) => Promise<number>;
   deleteCard: (id: number) => Promise<void>;
+  carryBalanceToNextMonth: (
+    month: string,
+    currency: Currency,
+    cardId?: number,
+  ) => Promise<{ success: boolean; reason?: "no_surplus" | "already_carried" }>;
 }
 
 export interface TransactionInput {
@@ -138,5 +143,56 @@ export const useLedgerStore = create<LedgerState>((set, get) => ({
   deleteCard: async (id) => {
     await db.cards.delete(id);
     set((state) => ({ cards: state.cards.filter((c) => c.id !== id) }));
+  },
+
+  carryBalanceToNextMonth: async (month, currency, cardId) => {
+    const allTxs = await db.transactions.toArray();
+    const monthTxs = allTxs.filter(
+      (t) =>
+        t.date.startsWith(month) &&
+        (t.currency ?? "RMB") === currency &&
+        (cardId == null || t.cardId === cardId),
+    );
+
+    const income = monthTxs
+      .filter((t) => t.type === "income")
+      .reduce((s, t) => s + t.amount, 0);
+    const expense = monthTxs
+      .filter((t) => t.type === "expense")
+      .reduce((s, t) => s + t.amount, 0);
+    const balance = income - expense;
+
+    if (balance <= 0) return { success: false, reason: "no_surplus" };
+
+    const [y, m] = month.split("-").map(Number);
+    const nextMonth =
+      m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, "0")}`;
+    const nextMonthFirst = `${nextMonth}-01`;
+
+    const existing = await db.transactions
+      .where("date")
+      .equals(nextMonthFirst)
+      .filter(
+        (t) =>
+          t.category === "结余结转" &&
+          (t.currency ?? "RMB") === currency &&
+          (cardId == null || t.cardId === cardId),
+      )
+      .first();
+
+    if (existing) return { success: false, reason: "already_carried" };
+
+    await db.transactions.add({
+      amount: balance,
+      currency,
+      cardId,
+      category: "结余结转",
+      date: nextMonthFirst,
+      type: "income",
+      note: `${month} 月结余结转`,
+      createdAt: Date.now(),
+    });
+
+    return { success: true };
   },
 }));

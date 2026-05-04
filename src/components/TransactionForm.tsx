@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { cn } from "@/lib/utils";
 import { useLedgerStore } from "@/store";
 import { useCards, useCategories } from "@/hooks";
-import type { Currency, TransactionType } from "@/types";
+import type { Currency, Transaction, TransactionType } from "@/types";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,8 @@ import { Textarea } from "@/components/ui/textarea";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface TransactionFormProps {
+  /** When provided, the form operates in edit mode. */
+  initialTransaction?: Transaction;
   /** Called after a transaction is successfully saved.
    *  Receives the 'YYYY-MM' month of the saved record so the caller
    *  can navigate to it if the transaction falls in a different month. */
@@ -49,19 +51,44 @@ const defaultFields = (): FormFields => ({
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function TransactionForm({
+  initialTransaction,
   onSuccess,
   className,
 }: TransactionFormProps) {
-  const [fields, setFields] = useState<FormFields>(defaultFields());
+  const isEditMode = initialTransaction != null;
+
+  const fieldsFromTx = (tx: Transaction): FormFields => ({
+    amount: (tx.amount / 100).toFixed(2),
+    currency: tx.currency ?? "RMB",
+    cardId: tx.cardId != null ? String(tx.cardId) : "",
+    date: tx.date,
+    type: tx.type,
+    category: tx.category,
+    note: tx.note ?? "",
+  });
+
+  const [fields, setFields] = useState<FormFields>(
+    initialTransaction ? fieldsFromTx(initialTransaction) : defaultFields(),
+  );
   const [errors, setErrors] = useState<
     Partial<Record<keyof FormFields, string>>
   >({});
   const [submitting, setSubmitting] = useState(false);
 
+  // Sync fields if the parent passes a different transaction to edit
+  useEffect(() => {
+    if (initialTransaction) {
+      setFields(fieldsFromTx(initialTransaction));
+      setErrors({});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialTransaction?.id]);
+
   // Reactive category list filtered by the selected type
   const categories = useCategories(fields.type);
   const cards = useCards();
   const addTransaction = useLedgerStore((s) => s.addTransaction);
+  const updateTransaction = useLedgerStore((s) => s.updateTransaction);
 
   // ── Field helpers ───────────────────────────────────────────────────────────
 
@@ -98,17 +125,24 @@ export function TransactionForm({
 
     setSubmitting(true);
     try {
-      await addTransaction({
-        amount: Math.round(parseFloat(fields.amount) * 100), // store as cents
+      const payload = {
+        amount: Math.round(parseFloat(fields.amount) * 100),
         currency: fields.currency,
         cardId: Number(fields.cardId),
         date: fields.date,
         type: fields.type,
         category: fields.category,
         note: fields.note.trim() || undefined,
-      });
-      const savedMonth = fields.date.slice(0, 7); // 'YYYY-MM'
-      setFields(defaultFields());
+      };
+
+      if (isEditMode && initialTransaction?.id != null) {
+        await updateTransaction(initialTransaction.id, payload);
+      } else {
+        await addTransaction(payload);
+      }
+
+      const savedMonth = fields.date.slice(0, 7);
+      if (!isEditMode) setFields(defaultFields());
       setErrors({});
       onSuccess?.(savedMonth);
     } finally {
@@ -127,7 +161,9 @@ export function TransactionForm({
       )}
       noValidate
     >
-      <h2 className="text-lg font-semibold text-zinc-900">记一笔</h2>
+      <h2 className="text-lg font-semibold text-zinc-900">
+        {isEditMode ? "编辑记录" : "记一笔"}
+      </h2>
 
       {/* ── Type toggle ──────────────────────────────────────────────────── */}
       <div className="flex rounded-lg border border-zinc-200 p-1">
@@ -270,7 +306,7 @@ export function TransactionForm({
             : "bg-red-500 hover:bg-red-600",
         )}
       >
-        {submitting ? "保存中…" : "保存记录"}
+        {submitting ? "保存中…" : isEditMode ? "保存修改" : "保存记录"}
       </Button>
     </form>
   );

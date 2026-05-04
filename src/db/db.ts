@@ -72,6 +72,20 @@ class FamilyLedgerDB extends Dexie {
           ] as Card[]);
         }
       });
+
+    // v4 - add "结余结转" income category for monthly balance carryover
+    this.version(4).upgrade(async (tx) => {
+      const cats = tx.table("categories");
+      const existing = await cats.where("name").equals("结余结转").first();
+      if (!existing) {
+        await cats.add({
+          name: "结余结转",
+          type: "income",
+          icon: "🔄",
+          color: "#6366F1",
+        });
+      }
+    });
   }
 }
 
@@ -97,6 +111,7 @@ db.on("populate", async () => {
     { name: "奖金", type: "income", icon: "🎁", color: "#16A34A" },
     { name: "理财", type: "income", icon: "📈", color: "#0EA5E9" },
     { name: "其他收入", type: "income", icon: "💰", color: "#84CC16" },
+    { name: "结余结转", type: "income", icon: "🔄", color: "#6366F1" },
   ];
 
   const defaultCards: Omit<Card, "id">[] = [

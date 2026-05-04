@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useLedgerStore } from "@/store";
 import { useCards, useTransactions } from "@/hooks";
+import { TransactionForm } from "@/components/TransactionForm";
 import type { Currency, Transaction } from "@/types";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -17,28 +19,73 @@ function formatAmount(cents: number, currency?: Currency) {
   return `${currencySymbol(currency)}${(cents / 100).toFixed(2)}`;
 }
 
+// ─── Delete confirm modal ─────────────────────────────────────────────────────
+
+function DeleteConfirmModal({
+  tx,
+  onConfirm,
+  onCancel,
+}: {
+  tx: Transaction;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <>
+      <div
+        className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+        onClick={onCancel}
+      />
+      <div className="fixed inset-0 z-50 flex items-center justify-center px-6">
+        <div className="w-full max-w-xs rounded-2xl bg-white p-6 shadow-xl">
+          <h3 className="text-base font-semibold text-zinc-900">确认删除</h3>
+          <p className="mt-2 text-sm text-zinc-500">
+            确定要删除「{tx.category}」这条记录吗？此操作不可撤销。
+          </p>
+          <div className="mt-5 flex gap-3">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="flex-1 rounded-lg border border-zinc-200 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+            >
+              取消
+            </button>
+            <button
+              type="button"
+              onClick={onConfirm}
+              className="flex-1 rounded-lg bg-red-500 py-2 text-sm font-medium text-white transition-colors hover:bg-red-600"
+            >
+              删除
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ─── Single row ───────────────────────────────────────────────────────────────
 
 function TransactionRow({
   tx,
   cardName,
+  onEdit,
+  onDelete,
 }: {
   tx: Transaction;
   cardName?: string;
+  onEdit: (tx: Transaction) => void;
+  onDelete: (tx: Transaction) => void;
 }) {
-  const deleteTransaction = useLedgerStore((s) => s.deleteTransaction);
   const isIncome = tx.type === "income";
 
   return (
     <li className="flex items-center justify-between rounded-lg bg-white px-4 py-3 shadow-sm">
-      <div className="flex items-center gap-3">
-        {/* Category badge */}
-        <span className="text-xl">
-          {/* icon loaded from category, fallback */}💰
-        </span>
-        <div>
+      <div className="flex items-center gap-3 min-w-0">
+        <span className="text-xl shrink-0">💰</span>
+        <div className="min-w-0">
           <p className="text-sm font-medium text-zinc-800">{tx.category}</p>
-          <p className="text-xs text-zinc-400">
+          <p className="truncate text-xs text-zinc-400">
             {tx.date}
             {cardName ? ` · ${cardName}` : ""}
             {tx.note ? ` · ${tx.note}` : ""}
@@ -46,7 +93,7 @@ function TransactionRow({
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 shrink-0 ml-2">
         <span
           className={cn(
             "text-sm font-semibold",
@@ -56,9 +103,28 @@ function TransactionRow({
           {isIncome ? "+" : "-"}
           {formatAmount(tx.amount, tx.currency)}
         </span>
+
+        {/* Edit button */}
+        <button
+          aria-label="编辑"
+          onClick={() => onEdit(tx)}
+          className="rounded p-1 text-zinc-300 transition-colors hover:bg-zinc-100 hover:text-zinc-600"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            className="h-4 w-4"
+          >
+            <path d="M5.433 13.917l1.262-3.155A4 4 0 017.58 9.42l6.92-6.918a2.121 2.121 0 013 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 01-.65-.65z" />
+            <path d="M3.5 5.75c0-.69.56-1.25 1.25-1.25H10A.75.75 0 0010 3H4.75A2.75 2.75 0 002 5.75v9.5A2.75 2.75 0 004.75 18h9.5A2.75 2.75 0 0017 15.25V10a.75.75 0 00-1.5 0v5.25c0 .69-.56 1.25-1.25 1.25h-9.5c-.69 0-1.25-.56-1.25-1.25v-9.5z" />
+          </svg>
+        </button>
+
+        {/* Delete button */}
         <button
           aria-label="删除"
-          onClick={() => tx.id != null && deleteTransaction(tx.id)}
+          onClick={() => onDelete(tx)}
           className="rounded p-1 text-zinc-300 transition-colors hover:bg-red-50 hover:text-red-400"
         >
           <svg
@@ -100,6 +166,10 @@ export function TransactionList({
     currency,
     cardId,
   );
+  const deleteTransaction = useLedgerStore((s) => s.deleteTransaction);
+
+  const [editingTx, setEditingTx] = useState<Transaction | null>(null);
+  const [deletingTx, setDeletingTx] = useState<Transaction | null>(null);
 
   if (isLoading) {
     return (
@@ -127,22 +197,67 @@ export function TransactionList({
     {},
   );
 
+  async function handleDeleteConfirm() {
+    if (deletingTx?.id != null) {
+      await deleteTransaction(deletingTx.id);
+    }
+    setDeletingTx(null);
+  }
+
   return (
-    <div className="space-y-4">
-      {Object.entries(groups).map(([date, items]) => (
-        <section key={date}>
-          <p className="mb-2 px-1 text-xs font-medium text-zinc-400">{date}</p>
-          <ul className="space-y-2">
-            {items.map((tx) => (
-              <TransactionRow
-                key={tx.id}
-                tx={tx}
-                cardName={tx.cardId ? cardNameMap.get(tx.cardId) : undefined}
-              />
-            ))}
-          </ul>
-        </section>
-      ))}
-    </div>
+    <>
+      <div className="space-y-4">
+        {Object.entries(groups).map(([date, items]) => (
+          <section key={date}>
+            <p className="mb-2 px-1 text-xs font-medium text-zinc-400">
+              {date}
+            </p>
+            <ul className="space-y-2">
+              {items.map((tx) => (
+                <TransactionRow
+                  key={tx.id}
+                  tx={tx}
+                  cardName={tx.cardId ? cardNameMap.get(tx.cardId) : undefined}
+                  onEdit={setEditingTx}
+                  onDelete={setDeletingTx}
+                />
+              ))}
+            </ul>
+          </section>
+        ))}
+      </div>
+
+      {/* ── Edit bottom sheet ──────────────────────────────────────────────── */}
+      {editingTx && (
+        <>
+          <div
+            className="fixed inset-0 z-20 bg-black/40 backdrop-blur-sm"
+            onClick={() => setEditingTx(null)}
+          />
+          <div className="fixed inset-x-0 bottom-0 z-30 flex justify-center">
+            <div className="mx-auto flex max-h-[90dvh] w-full max-w-md flex-col rounded-t-2xl bg-zinc-50 shadow-xl">
+              <div className="flex justify-center py-3">
+                <div className="h-1 w-10 rounded-full bg-zinc-300" />
+              </div>
+              <div className="overflow-y-auto px-4 pb-8 overscroll-contain">
+                <TransactionForm
+                  initialTransaction={editingTx}
+                  onSuccess={() => setEditingTx(null)}
+                />
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ── Delete confirm modal ───────────────────────────────────────────── */}
+      {deletingTx && (
+        <DeleteConfirmModal
+          tx={deletingTx}
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => setDeletingTx(null)}
+        />
+      )}
+    </>
   );
 }
